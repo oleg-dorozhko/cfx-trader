@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>CFX Константний Трейдер 2025</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font-family: Arial, sans-serif; background: #0f0f1a; color: #0f0; padding: 20px; max-width: 900px; margin: auto; }
+  h1 { text-align: center; color: #0f0; }
+  .card { background: #1a1a2e; padding: 20px; border-radius: 15px; margin: 15px 0; border: 1px solid #0f0; }
+  input, button { padding: 12px; margin: 8px 0; width: 100%; border-radius: 8px; border: 1px solid #0f0; background: #16213e; color: #0f0; font-size: 16px; }
+  button { background: #0f0; color: #000; font-weight: bold; cursor: pointer; }
+  button:hover { background: #0c0; }
+  table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+  th, td { border: 1px solid #0f0; padding: 10px; text-align: center; }
+  th { background: #16213e; }
+  .profit { color: #0f0; font-weight: bold; }
+  .warning { color: #ff0; }
+  .free-cfx { color: cyan; font-size: 1.4em; }
+</style>
+</head>
+<body>
+  <h1>CFX Константний Трейдер v1.0</h1>
+  <div class="card">
+    <h2>Налаштування</h2>
+    <input type="number" id="startUsdt" placeholder="Стартова сума USDT (наприклад 100)" value="100">
+    <input type="number" id="startPrice" placeholder="Ціна CFX на старті (наприклад 0.162)" step="0.000001" value="0.162">
+    <input type="number" id="currentPrice" placeholder="Поточна ціна CFX" step="0.000001" value="0.162">
+    <button onclick="init()">Запустити/Оновити розрахунок</button>
+  </div>
+
+  <div class="card">
+    <h2>Результати</h2>
+    <p>Початкова позиція: <span id="initialCfx">-</span> CFX</p>
+    <p>Константний лот (1/20): <span id="fixedLot">-</span> CFX | <span id="fixedUsdt">-</span> USDT</p>
+    <p>Зароблено на 20 продажах: <span id="profitPhase1" class="profit">-</span> USDT</p>
+    <p>Нова константа після фази 1: <span id="newConstant" class="profit">-</span> USDT</p>
+    <p class="free-cfx">Безкоштовний CFX (накопичено): <span id="freeCfx">0</span></p>
+    <p>Поточна вартість усього: <span id="totalValue" class="profit">-</span> USDT</p>
+  </div>
+
+  <div class="card">
+    <h2>Що робити зараз?</h2>
+    <div id="action"></div>
+  </div>
+
+  <div class="card">
+    <h2>Історія останніх дій</h2>
+    <table id="history">
+      <tr><th>Ціна</th><th>Дія</th><th>CFX</th><th>USDT</th></tr>
+    </table>
+  </div>
+
+<script>
+// === Глобальні змінні ===
+let initialCfx = 0;
+let fixedLotCfx = 0;
+let fixedUsdtAfterPhase1 = 0;
+let newConstantUsdt = 0;
+let soldCount = 0;
+let freeCfx = 0;
+let usdtBalance = 0;
+let cfxBalance = 0;
+let lastBuyPrice = 0;
+
+function init() {
+  const startUsdt = parseFloat(document.getElementById('startUsdt').value) || 100;
+  const startPrice = parseFloat(document.getElementById('startPrice').value) || 0.162;
+  const currentPrice = parseFloat(document.getElementById('currentPrice').value) || startPrice;
+
+  // Фаза 1
+  initialCfx = startUsdt / startPrice;
+  fixedLotCfx = initialCfx / 20;
+  soldCount = 0;
+  usdtBalance = 0;
+  cfxBalance = initialCfx;
+  freeCfx = 0;
+
+  // Симулюємо 20 продажів по 0.6%
+  let price = startPrice;
+  for (let i = 1; i <= 20; i++) {
+    price = price * 1.006;
+    const revenue = fixedLotCfx * price;
+    usdtBalance += revenue;
+    cfxBalance -= fixedLotCfx;
+    soldCount++;
+    if (soldCount === 20) break;
+  }
+
+  fixedUsdtAfterPhase1 = usdtBalance;
+  newConstantUsdt = usdtBalance / 20;
+  cfxBalance = initialCfx % fixedLotCfx; // залишок (може бути 0 або останнє 1/20)
+
+  // Оновлюємо інтерфейс
+  document.getElementById('initialCfx').textContent = initialCfx.toFixed(4);
+  document.getElementById('fixedLot').textContent = fixedLotCfx.toFixed(4);
+  document.getElementById('fixedUsdt').textContent = newConstantUsdt.toFixed(4);
+  document.getElementById('profitPhase1').textContent = fixedUsdtAfterPhase1.toFixed(2);
+  document.getElementById('newConstant').textContent = newConstantUsdt.toFixed(4);
+
+  updateCurrentState(currentPrice);
+}
+
+function updateCurrentState(currentPrice) {
+  const totalValue = usdtBalance + cfxBalance * currentPrice + freeCfx * currentPrice;
+  document.getElementById('totalValue').textContent = totalValue.toFixed(2);
+  document.getElementById('freeCfx').textContent = freeCfx.toFixed(4);
+
+  // Логіка дій
+  const actionDiv = document.getElementById('action');
+  if (soldCount < 20) {
+    const nextSellPrice = parseFloat(document.getElementById('startPrice').value) * Math.pow(1.006, soldCount + 1);
+    actionDiv.innerHTML = `<p class="warning">Чекай ціну <b>${nextSellPrice.toFixed(6)}</b> → продай ${fixedLotCfx.toFixed(4)} CFX</p>`;
+  } else if (lastBuyPrice === 0 || currentPrice >= lastBuyPrice * 1.006) {
+    // Час купувати або продавати з нового циклу
+    if (currentPrice >= (lastBuyPrice || 0) * 1.006) {
+      // Продаємо тільки вкладене
+      const cfxBought = newConstantUsdt / (lastBuyPrice || currentPrice);
+      const sellAmount = newConstantUsdt / currentPrice;
+      freeCfx += (cfxBought - sellAmount);
+      actionDiv.innerHTML = `<p class="profit">ПРОДАЙ ${sellAmount.toFixed(4)} CFX → отримаєш ${newConstantUsdt.toFixed(4)} USDT назад<br>Безкоштовний CFX +${(cfxBought - sellAmount).toFixed(4)}</p>`;
+      addHistory(currentPrice, "ПРОДАЖ (повернення константи)", sellAmount.toFixed(4), newConstantUsdt.toFixed(4));
+      lastBuyPrice = 0;
+    } else {
+      actionDiv.innerHTML = `<p class="profit">КУПУЙ на ${newConstantUsdt.toFixed(4)} USDT<br>Отримаєш ≈ ${(newConstantUsdt / currentPrice).toFixed(2)} CFX</p>`;
+      lastBuyPrice = currentPrice;
+      addHistory(currentPrice, "КУПІВЛЯ", (newConstantUsdt / currentPrice).toFixed(4), newConstantUsdt.toFixed(4));
+    }
+  } else {
+    actionDiv.innerHTML = `<p>Чекай +0.6% від останньої покупки (${(lastBuyPrice * 1.006).toFixed(6)})</p>`;
+  }
+}
+
+function addHistory(price, action, cfx, usdt) {
+  const table = document.getElementById('history');
+  const row = table.insertRow(1);
+  row.innerHTML = `<td>${price.toFixed(6)}</td><td>${action}</td><td>${cfx}</td><td>${usdt}</td>`;
+}
+
+// Оновлення при зміні поточної ціни
+document.getElementById('currentPrice').addEventListener('input', () => {
+  const price = parseFloat(document.getElementById('currentPrice').value);
+  if (!isNaN(price) && soldCount >= 0) updateCurrentState(price);
+});
+</script>
+
+<p style="text-align:center; margin-top:50px; color:#666;">
+  Зроблено спеціально для тебе. Використовуй з розумом. Накопичи 1000 CFX без ризиків — і ти вже в плюсі назавжди.
+</p>
+</body>
+</html>
