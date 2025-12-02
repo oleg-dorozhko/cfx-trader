@@ -26,6 +26,10 @@
     <input type="number" id="startUsdt" placeholder="Стартова сума USDT (наприклад 100)" value="100">
     <input type="number" id="startPrice" placeholder="Ціна CFX на старті (наприклад 0.162)" step="0.000001" value="0.162">
     <input type="number" id="currentPrice" placeholder="Поточна ціна CFX" step="0.000001" value="0.162">
+<div style="display:flex; gap:10px; margin-top:10px;">
+  <input type="number" id="percentUp" placeholder="%" value="0.6" step="0.1" style="width:100px;">
+  <button onclick="applyPercentUp()">+ % вгору</button>
+</div>
     <button onclick="init()">Запустити/Оновити розрахунок</button>
   </div>
 
@@ -131,6 +135,26 @@ function updateCurrentState(currentPrice) {
   }
 }
 
+  function applyPercentUp() {
+  const percentInput = parseFloat(document.getElementById('percentUp').value);
+  if (isNaN(percentInput) || percentInput <= 0) {
+    alert('Введи нормальний відсоток!');
+    return;
+  }
+  
+  const currentPriceInput = document.getElementById('currentPrice');
+  let currentPrice = parseFloat(currentPriceInput.value);
+  
+  if (!isNaN(currentPrice)) {
+    const multiplier = 1 + (percentInput / 100);
+    currentPrice = currentPrice * multiplier;
+    currentPriceInput.value = currentPrice.toFixed(8);  // гарна точність
+    
+    // Оновлюємо всі розрахунки
+    updateCurrentState(currentPrice);
+  }
+}
+  
 function addHistory(price, action, cfx, usdt) {
   const table = document.getElementById('history');
   const row = table.insertRow(1);
